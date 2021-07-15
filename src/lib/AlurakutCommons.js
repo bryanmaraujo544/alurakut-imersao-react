@@ -148,7 +148,7 @@ AlurakutMenu.Wrapper = styled.header`
       background-repeat: no-repeat;
       border-radius: 1000px;
       font-size: 12px;
-      ::placeholder {
+      &::placeholder {
         color: #ffffff;
         opacity: 1;
       }
@@ -173,8 +173,7 @@ function AlurakutMenuProfileSidebar({ githubUser }) {
             @{githubUser}
           </a>
         </p>
-        <hr />
-
+        <hr/>
         <AlurakutProfileSidebarMenuDefault />
       </div>
     </div>
