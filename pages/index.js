@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useReducer } from 'react'
 import { MainGrid } from '../src/components/MainGrid'
 import { Box } from '../src/components/Box'
+import { RelationsBox } from '../src/components/RelationsBox'
 import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet } from '../src/lib/AlurakutCommons'
 import { ProfileRelationsBoxWrapper } from '../src/components/ProfileRelations'
 
@@ -26,12 +27,43 @@ function ProfileSidebar({githubUser}) {
 }
 
 
+
+const seeMores = (state, action) => {
+  switch(action.wichButton) {
+    case 'community':
+      return {
+        community: !state.community,
+        followers: state.followers,
+        favoritePeople: state.favoritePeople
+      };
+    case 'followers': 
+      return{
+        community: state.community,
+        followers: !state.followers,
+        favoritePeople: state.favoritePeople
+
+      }
+    case 'favoritePeople': 
+      return {
+      community: state.community,
+      followers: state.followers,
+      favoritePeople: !state.favoritePeople
+    }
+  }
+}
+
+const initialValues = {
+  community: false,
+  followers: false,
+  favoritePeople: false
+}
+
+
+
+
 export default function Home() {
-  const [communities, setCommunities] = useState( [{
-    id: '4343439u3',
-    title: "Eu odeio acordar cedo",
-    image: 'https://alurakut.vercel.app/capa-comunidade-01.jpg'
-  }] )
+  const user = 'bryan77'
+  const [communities, setCommunities] = useState( [] )
   const githubUser = 'bryanmaraujo544'
   const pessoasFavoritas = [
     'juunegreiros',
@@ -39,10 +71,57 @@ export default function Home() {
     'peas',
     'rafaballerini',
     'marcobrunodev',
-    'felipefialho'
+    'felipefialho',
+    'kauan777'
   ]
 
-  const [seeMore, setSeeMore] = useState(false)
+  // Boolean para checar se o botão "Ver mais das comunidades foi apertado"
+  const [seeMoree, dispatch] = useReducer(seeMores, initialValues)
+
+  const [seguidores, setSeguidores] = useState([])
+  useEffect(() => {
+    // GET
+    fetch('https://api.github.com/users/bryanmaraujo544/followers')
+    .then(respostaDoServidor => {
+      return respostaDoServidor.json();
+    })
+    .then(respostaCompleta => {
+      setSeguidores(respostaCompleta)
+    })
+
+    // API GraphQl
+    fetch('https://graphql.datocms.com/', {
+      method: 'POST',
+      // Onde é provida informações de requests e responses
+      headers: {
+        'Authorization': 'd8fa78f6e4ed042d3c94fb2965cf19',
+        // Documentação Dato
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      // Corpo da nossa requisição
+      body: JSON.stringify({"query": `
+        query {
+          allCommunities {
+            title
+            id 
+            imageUrl
+            creatorSlug
+          }
+        }
+      ` })
+    })
+    .then(response => response.json())
+    .then(responseJson => {
+      const communitiesDatoApi = responseJson.data.allCommunities
+      setCommunities(communitiesDatoApi)
+      console.log("Comunidade:", communities)
+      console.log("DadosApi", communitiesDatoApi)
+    })
+  }, [])
+
+  
+
     
     
   
@@ -68,17 +147,33 @@ export default function Home() {
               event.preventDefault()
               const formData = new FormData(event.target)
 
+              // Objeto que será mandado para a API, com os mesmo nomes de props do modelo criado no DATO
               const community = {
-                id: new Date().toISOString(),
-                title: formData.get('title').trim(),
-                image: formData.get('image').trim(),
+                title: formData.get('title'),
+                imageUrl: formData.get('image'),
+                creatorSlug: "uSER"
               }
 
-              if(community.title !== "" && community.image !== ""){
-                setCommunities([...communities, community])
-              } else {
-                alert("Não deixe nenhum campo vazio")
-              }
+              fetch('/api/communities', {
+                method: 'POST',
+                // Digo para o servidor que tipo de data estou enviando
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(community)
+              })
+              .then(async (response) => {
+                const dados = await response.json()
+                const newCommunities = [...communities, dados.registerCreated]
+                setCommunities(newCommunities)
+              })
+              
+
+              // if(community.title !== "" && community.image !== ""){
+              //   setCommunities([...communities, community])
+              // } else {
+              //   alert("Não deixe nenhum campo vazio")
+              // }
             } }>
               <div>
                 <input
@@ -105,78 +200,10 @@ export default function Home() {
             </form>
           </Box>
         </div>
-        <div style={{ gridArea: 'profileRelationsArea' }}>
-        <ProfileRelationsBoxWrapper>
-            <h2 className="smallTitle">
-              Comunidades ({communities.length})
-            </h2>
-
-            
-            <ul>
-              { 
-                
-                communities.map((community, i) => {
-                  console.log(community.image)
-                
-                  if(i <= 5 && seeMore == false){
-                    return (
-                      <li key={community.id}>
-                        <a href={`/user/${community.name}`}>
-                          <img src={community.image} />
-                          <span> 
-                            {community.title}
-                          </span>
-                        </a>
-                      </li>
-                      
-                    )
-                  } else if(seeMore){
-                    return (
-                      <li key={community.id} style={{zIndex: '1'}}>
-                        <a href={`/user/${community.name}`}>
-                          <img src={community.image} />
-                          <span> 
-                            {community.title}
-                          </span>
-                        </a>
-                      </li>
-                      
-                    )
-                  }
-                  
-                
-                }) 
-              
-              }
-            </ul>
-            
-            {communities.length > 6 && seeMore == false && <p onClick={() => setSeeMore(true)} className="seemore">Ver mais</p>}
-            {seeMore == true && <p onClick={() => setSeeMore(false)} className="seemore" >Ver menos</p>}
-
-            
-      </ProfileRelationsBoxWrapper>
-
-          <ProfileRelationsBoxWrapper>
-              <h2 className="smallTitle">
-                Pessoas da comunidade ({pessoasFavoritas.length})
-              </h2>
-
-              <ul>
-                { pessoasFavoritas.map((pessoa) => {
-                  return (
-                    <li key={pessoa}>
-                      <a href={`/user/${pessoa}`} >
-                        <img src={`https://github.com/${pessoa}.png`} />
-                        <span> 
-                          {pessoa}
-                        </span>
-                      </a>
-                    </li>
-                    
-                  )
-                }) }
-              </ul>
-            </ProfileRelationsBoxWrapper>
+        <div className="profileRelationsArea" style={{ gridArea: 'profileRelationsArea' }}>
+          <RelationsBox title="Seguidores" items={seguidores} seeMoree={seeMoree} dispatch={dispatch} wichButton="followers"/>
+          <RelationsBox title="Comunidades" items={communities} seeMoree={seeMoree} dispatch={dispatch} wichButton="community"/>
+          <RelationsBox title="Pessoas da comunidade" items={pessoasFavoritas} seeMoree={seeMoree} dispatch={dispatch} wichButton="favoritePeople"/>
         </div>
       </MainGrid>
     </>
