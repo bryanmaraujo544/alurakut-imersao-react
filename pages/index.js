@@ -1,5 +1,7 @@
 import { useState, useEffect, useReducer } from 'react'
 import { MainGrid } from '../src/components/MainGrid'
+import nookies from 'nookies'
+import jwt from 'jsonwebtoken'
 import { Box } from '../src/components/Box'
 import { RelationsBox } from '../src/components/RelationsBox'
 import { AlurakutMenu, AlurakutProfileSidebarMenuDefault, OrkutNostalgicIconSet } from '../src/lib/AlurakutCommons'
@@ -61,10 +63,9 @@ const initialValues = {
 
 
 
-export default function Home() {
-  const user = 'bryan77'
+export default function Home(props) {
   const [communities, setCommunities] = useState( [] )
-  const githubUser = 'bryanmaraujo544'
+  const githubUser = props.githubUser
   const pessoasFavoritas = [
     'juunegreiros',
     'omariosouto',
@@ -208,4 +209,47 @@ export default function Home() {
       </MainGrid>
     </>
   )
+}
+
+// Está rodando no servidor do Next, e antes da página carregar ele será acionado
+export async function getServerSideProps(context) {
+  const cookies = nookies.get(context)
+  console.log('cookies', cookies)
+  const token = cookies.USER_TOKEN
+  console.log('token', token)
+  
+  console.log(token)
+  
+  // // Desestrutro a propriedade que é rotornada do objeto da promise
+  const { isAuthenticated } = await fetch('http://localhost:3000/api/auth', {
+    headers: {
+      Authorization: token
+    }
+  })
+  .then(resposta => resposta.json())
+  
+  
+
+  
+  if(!isAuthenticated){
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    }
+    
+  }
+  
+  const {githubUser} = jwt.decode(token)
+  console.log("User", githubUser)
+
+  // Faço o decode do token para acessar suas informaçoes
+  return {
+    props: {
+      // Se o nome da propriedade e valor for o mesmo  posso deixar só um
+      // githubUser: githubUser
+      githubUser
+    }, // will be passsed to the page component as props
+  }
 }
